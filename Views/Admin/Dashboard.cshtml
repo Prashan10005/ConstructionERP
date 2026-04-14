@@ -2,7 +2,7 @@
     Layout = null;
 }
 
-<! DOCTYPE html>
+<!DOCTYPE html>
 <html>
     <head>
         <title> ADMIN DASHBOARD</title>
@@ -22,8 +22,8 @@
                 <span class="me-3"> Welcome, @ViewBag.Username</span>
             </div>
 
-            <form asp-action="Logout" asp-controller="Account" method="post" class="d-inline">
-                <button type="submit" class="btn btn-outline-danger btn-sm">
+            <form id="logoutForm" method="post" class="d-inline">
+                <button id="Logout" type="submit" class="btn btn-outline-danger btn-sm" onclick="logout()">
                     LOGOUT
                 </button>
             </form>
@@ -33,12 +33,270 @@
             <h4> <i class="fas fa-tachometer-alt"></i> Employe Management</h4>
         </div>
 
-        <!--code the employee page here, form and grid to display details and also can show total count of employees at the bottom-->
+         <div class="row mt-4">
+             <div class="col-md-5">
+                <div class="card">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">USER REGISTRATION FORM</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="createUserForm">
+                            <div class="mb-3">
+                                <label class="form-label">User ID</label>
+                                <input id="UserId" type="text" class="form-control" value="Auto-generated" disabled />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">User Name</label>
+                                <input id="Username" type="text" class="form-control" placeholder="Enter Username" required/>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Email</label>
+                                <input id="Email" type="email" class="form-control" placeholder="Enter Email" required />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Password</label>
+                                <input id="Password" type="password" class="form-control" placeholder="Enter Password with min 8 Charecters" required/>
+                                <span class="list-group-text fa-solid fa-eye toggle-password" style="cursor:pointer;" onclick="togglePassword()"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Role</label>
+                                <select id="Role" class="form-select" required> 
+                                    <option value="ProjectManager">Project Manager</option>
+                                    <option value="FieldStaff">Field Staff</option>
+                                </select>
+                            </div>
+
+                            <div class="mb-3 form-check">
+                                <label class="form-check-label">Active </label>
+                                <input type="checkbox" id="IsActive" class="form-check-input" checked />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Created At</label>
+                                <input id="CreatedAt" type="text" class="form-control" disabled />
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Last Login At</label>
+                                <input id="LastloginAt" type="text" class="form-control" disabled />
+                            </div>
+
+                            <button id="submit" type="submit" class="btn btn-primary w-100">Create User</button>
+
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <div id="alertMessage"></div>
+                            </div>
+                        </div>
+
+                        </form>
+                    </div> 
+                </div>
+             </div>
+             <div class="col-md-7">
+                 <div class="card">
+                     <div class="card-header bg-info text-white">
+                        <h5 class="mb-0">Registered User List</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-bordered table-striped">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Username</th>
+                                        <th>Email</th>
+                                        <th>Role</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="userTableBody">
+                                    <tr>
+                                        <td colspan="4" class="text-center">Loading users...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                 </div>
+
+             </div>
+         </div>
 
         <div class="alert alert-success mt-3">
             <i class="fas fa-check-circle"></i>
             Login Successfull. Active Session is going on.
         </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+     <script>
+        // Load users at page load
+        $(document).ready(function(){
+            loadUsers();
+        });
+
+        //toggle password
+        function togglePassword() {
+            const password = document.getElementById('Password');
+            const icon = document.querySelector('.toggle-password');
+            if (password.type === 'text') {
+                password.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            } else {
+                password.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
+        }
+
+        // Get all users
+        function loadUsers() {
+            $.ajax({
+                url: '/api/auth/get-users',
+                type: 'GET',
+                success: function(response) {
+                    if (response.success && response.users) {
+                        var tbody = $('#userTableBody');
+                        tbody.empty();
+
+                        if (response.users.length === 0) {
+                            tbody.append('<tr><td colspan="4" class="text-center">No users found</td></tr>');
+                        } else {
+                            $.each(response.users, function(index, user) {
+                                var statusBadge = user.isActive ?
+                                    '<span class="badge bg-success">Active</span>' :
+                                    '<span class="badge bg-danger">Inactive</span>';
+
+                                var roleBadge = user.role === 'ProjectManager' ?
+                                    '<span class="badge bg-primary">Project Manager</span>' :
+                                    '<span class="badge bg-warning">Field Staff</span>';
+
+                                var row = `
+                                    <tr>
+                                        <td>${escapeHtml(user.username)}</td>
+                                        <td>${escapeHtml(user.email)}</td>
+                                        <td>${roleBadge}</td>
+                                        <td>${statusBadge}</td>
+                                    </tr>
+                                `;
+                                tbody.append(row);
+                            });
+                        }
+                    } else {
+                        $('#userTableBody').html('<tr><td colspan="4" class="text-center text-danger">Failed to load users</td></tr>');
+                    }
+                },
+                error: function(xhr) {
+                    $('#userTableBody').html('<tr><td colspan="4" class="text-center text-danger">Error loading users</td></tr>');
+                    showAlert('Error loading users', 'danger');
+                }
+            });
+        }
+
+        // Create user
+        $('#createUserForm').on('submit', function(e) {
+            e.preventDefault();
+            
+            // Get form data
+            var userData = {
+                Username: $('#Username').val().trim(),
+                Email: $('#Email').val().trim(),
+                Password: $('#Password').val(),
+                Role: $('#Role').val(),
+                IsActive: $('#IsActive').is(':checked')
+            };
+
+            if (userData.Password.length < 8) {
+                showAlert('Password must be at least 8 characters', 'danger');
+                return;
+            }
+            
+            // Show loading state
+            var btn = $(this).find('button[type="submit"]');
+            var originalText = btn.html();
+            btn.prop('disabled', true);
+            btn.html('Creating...');
+            
+            // Call REST API
+            $.ajax({
+                url: '/api/auth/create-user',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(userData),
+                success: function(response) {
+                    if (response.success) {
+                        showAlert(response.message, 'success');
+                        // Clear form
+                        $('#createUserForm')[0].reset();
+                        $('#IsActive').prop('checked', true);
+                        // Reload user list
+                        loadUsers();
+                    } else {
+                        showAlert(response.message, 'danger');
+                    }
+                    btn.prop('disabled', false);
+                    btn.html(originalText);
+                },
+                error: function(xhr) {
+                    var errorMsg = 'Error creating user';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        errorMsg = xhr.responseJSON.message;
+                    }
+                    showAlert(errorMsg, 'danger');
+                    btn.prop('disabled', false);
+                    btn.html(originalText);
+                }
+            });
+        });
+
+        // alert message
+        function showAlert(message, type) {
+            $('#alertMessage').html(`
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `);
+
+            // Auto hide after 3 seconds
+            setTimeout(function() {
+                $('.alert').alert('close');
+            }, 3000);
+        }
+
+        // escape HTML text to convert to default
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+    
+        // Logout function
+         function logout() {
+            $.ajax({
+                url: '/api/auth/logout',
+                type: 'POST',
+                success: function (response) {
+                    if (response.success) {
+                        window.location.href = '/Account/Login';
+                    }
+                },
+                error: function () {
+                    alert("Logout failed");
+                }
+            });
+         }
+    </script>
 
     </body>
 </html>

@@ -1,27 +1,32 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Http;
+using ConstructionERP.Services;
 
 namespace ConstructionERP.Controllers
 {
     public class AdminController : Controller
     {
+        private readonly ISessionService _sessionService;
+
+        public AdminController(ISessionService sessionService)
+        {
+            _sessionService = sessionService;
+        }
+
         public IActionResult Dashboard()
         {
             // active user check
-            if(HttpContext.Session.GetString("UserId") == null)
+            if(!_sessionService.IsUserLoggedIn())
             {
                 return RedirectToAction("Login", "Account");
             }
 
             // admin role check
-            if(HttpContext.Session.GetString("UserRole") != "Admin")
+            if(_sessionService.GetUserRole() != "Admin")
             {
                 return RedirectToAction("AccessDenied", "Account");
             }
 
-            ViewBag.UserName = HttpContext.Session.GetString("Username");
-            ViewBag.UserEnail = HttpContext.Session.GetString("UserEmail");
-
+            ViewBag.UserName = _sessionService.GetUsername();
             return View();
         }
     }
