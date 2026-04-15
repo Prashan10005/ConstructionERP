@@ -186,6 +186,122 @@ namespace ConstructionERP.Controllers.API
             }
         }
 
+        // API method to update user by user ID
+        [HttpPut("update-user/{id}")]
+        public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserViewModel model)
+        {
+            // check for admin role 
+            var currentUserRole = _sessionService.GetUserRole();
+            if (currentUserRole != "Admin")
+            {
+                return Unauthorized(new { success = false, message = "You are not Authorized" });
+            }
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(new
+                {
+                    success = false,
+                    message = "Invalid Data",
+                    errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
+                });
+            }
+            try
+            {
+                // get user by user id
+                var user = await _context.Users.FindAsync(id);
+                if (user == null)
+                {
+                    return NotFound(new { success = false, message = "User not found" });
+                }
+
+                // email duplication check
+                var existingEmail = await _context.Users.FirstOrDefaultAsync(u => u.Email == model.Email && u.UserID != id);
+                if(existingEmail != null)
+                {
+                    return BadRequest(new { success = false, message = "Email already in use by another user" });
+                }
+
+                // username duplication check
+                var existingUsername = await _context.Users.FirstOrDefaultAsync(u => u.Username == model.Username && u.UserID != id);
+
+                if (existingUsername != null)
+                {
+                    return BadRequest(new { success = false, message = "Username already in use by another user" });
+                }
+
+                // update user details
+                user.Username = model.Username;
+                user.Email = model.Email;
+                user.Role = model.Role;
+                user.IsActive = model.IsActive;
+
+                // check only if password is provided for update
+                if (!string.IsNullOrEmpty(model.Password))
+                {
+                    user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(model.Password);
+                }
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    success = true,
+                    message = "User updated successfully",
+                    user = new
+                    {
+                        user.UserID,
+                        user.Username,
+                        user.Email,
+                        user.Role,
+                        user.IsActive,
+                        user.CreatedAt,
+                        user.LastLoginAt
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Error updating user: " + ex.Message });
+            }
+        }
+
+        // get user details by user id
+        [HttpGet("get-user/{id}")]
+        public async Task<IActionResult> GetUser(int id)
+        {
+            // check for admin role 
+            var currentUserRole = _sessionService.GetUserRole();
+            if (currentUserRole != "Admin")
+            {
+                return Unauthorized(new { success = false, message = "You are not Authorized" });
+            }
+            try
+            {
+                var user = await _context.Users
+                                .Where(u => u.UserID == id)
+                                .Select(u => new
+                                {
+                                    u.UserID,
+                                    u.Username,
+                                    u.Email,
+                                    u.Role,
+                                    u.IsActive,
+                                    u.CreatedAt,
+                                    u.LastLoginAt
+                                })
+                                .FirstOrDefaultAsync();
+                if (user == null)
+                {
+                    return NotFound(new { success = false, message = "User not found" });
+                }
+                return Ok(new { success = true, user = user });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { success = false, message = "Error fetching user: " + ex.Message });
+            }
+        }
+
         [HttpPost("logout")]
         public IActionResult Logout()
         {

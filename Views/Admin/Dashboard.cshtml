@@ -58,8 +58,9 @@
 
                             <div class="mb-3">
                                 <label class="form-label">Password</label>
-                                <input id="Password" type="password" class="form-control" placeholder="Enter Password with min 8 Charecters" required/>
+                                <input id="Password" type="password" class="form-control" placeholder="Enter Password with min 8 Charecters"/>
                                 <span class="list-group-text fa-solid fa-eye toggle-password" style="cursor:pointer;" onclick="togglePassword()"></span>
+                                <small id="passwordHint" class="text-muted">Leave blank to keep current password when updating</small>
                             </div>
 
                             <div class="mb-3">
@@ -85,7 +86,12 @@
                                 <input id="LastloginAt" type="text" class="form-control" disabled />
                             </div>
 
-                            <button id="submit" type="submit" class="btn btn-primary w-100">Create User</button>
+                            <div class="d-flex gap-2">
+                                <button id="createBtn" type="submit" class="btn btn-primary flex-grow-1">Create User</button>
+                                <button id="updateBtn" type="button" class="btn btn-primary flex-grow-1">Update User</button>
+                                <button id="clearBtn" type="button" class="btn btn-secondary" >Clear</button>
+                            </div>
+                            
 
                         <div class="row mt-3">
                             <div class="col-md-12">
@@ -111,6 +117,7 @@
                                         <th>Email</th>
                                         <th>Role</th>
                                         <th>Status</th>
+                                        <th>Action</th>
                                     </tr>
                                 </thead>
                                 <tbody id="userTableBody">
@@ -134,12 +141,10 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
-     <script>
-        // Load users at page load
-        $(document).ready(function(){
-            loadUsers();
-        });
-
+    <script type="text/javascript">
+        var isUpdateMode = false;
+        var selectedUserId = 0;
+        
         //toggle password
         function togglePassword() {
             const password = document.getElementById('Password');
@@ -154,6 +159,22 @@
                 icon.classList.add('fa-eye-slash');
             }
         }
+
+        // Load users at page load
+        $(document).ready(function(){
+            loadUsers();
+
+            // clear button function call
+            $('#clearBtn').click(function(){
+                clearForm();
+            });     
+
+            // update button function call
+            $('#updateBtn').click(function(){
+                updateUser();
+            });
+        
+        });
 
         // Get all users
         function loadUsers() {
@@ -183,6 +204,7 @@
                                         <td>${escapeHtml(user.email)}</td>
                                         <td>${roleBadge}</td>
                                         <td>${statusBadge}</td>
+                                        <td><button class="btn btn-sm btn-info" onclick="viewUser(${user.userID})">View</button></td>
                                     </tr>
                                 `;
                                 tbody.append(row);
@@ -199,8 +221,60 @@
             });
         }
 
+        //Get single user by ID
+        function viewUser(Id) {
+            $.ajax({
+                url: `/api/auth/get-user/`+ Id,
+                type: 'GET',
+                success: function(response) {
+                    if (response.success && response.user) {
+                        var user = response.user;
+                        // display details in form
+                        $('#SelectedUserId').val(user.userID);
+                        $('#UserId').val(user.userID);
+                        $('#Username').val(user.username);
+                        $('#Email').val(user.email);
+                        $('#Password').val('');
+                        $('#Role').val(user.role);
+                        $('#IsActive').prop('checked', user.isActive);
+                        $('#CreatedAt').val(user.createdAt);
+                        $('#LastloginAt').val(user.lastLoginAt || 'Never logged in');
+                        
+                        isUpdateMode = true;
+                        selectedUserId = user.userID;
+                        $('#createBtn').prop('disabled', true);
+                        $('#updateBtn').prop('disabled', false);
+                        $('#passwordRequired').html('<span class="text-muted">(Optional - leave blank to keep current)</span>');
+                        $('#passwordHint').show();
+
+                        showAlert('User loaded. Make changes and click Update User.', 'success');
+                    } 
+                },
+                error: function(xhr) {
+                    showAlert('Error loading user details', 'danger');
+                }
+            });
+        }
+        //Clear form
+        function clearForm() {
+            $('#createUserForm')[0].reset();
+            $('#SelectedUserId').val('0');
+            $('#UserID').val('Auto-generated');
+            $('#IsActive').prop('checked', true);
+            $('#Password').val('');
+
+            isUpdateMode = false;
+            selectedUserId = 0;
+            $('#createBtn').prop('disabled', false);
+            $('#updateBtn').prop('disabled', true);
+            $('#passwordRequired').html('*');
+            $('#passwordHint').hide();
+
+            showAlert('Form cleared. Ready to create new user.', 'info');
+        }
+
         // Create user
-        $('#createUserForm').on('submit', function(e) {
+        $('#createBtn').click(function(e) {
             e.preventDefault();
             
             // Get form data
@@ -255,6 +329,64 @@
             });
         });
 
+        // update user
+        function updateUser(){
+            var userData ={
+                Username: $('#Username').val().trim(),
+                Email: $('#Email').val().trim(),
+                Role: $('#Role').val(),
+                IsActive: $('#IsActive').is(':checked')
+            };
+                var password = $('#Password').val();
+
+            if (password) {
+                if (password.length < 8) {
+                    showAlert('Password must be at least 8 characters', 'danger');
+                    return;
+                }
+                userData.Password = password;
+             }
+
+            // make the button disabled while updating
+            var btn = $('#updateBtn');
+            var originalText = btn.html();
+            btn.prop('disabled', true);
+            btn.html('Updating...');
+
+            $.ajax({
+                url: '/api/auth/update-user/' + selectedUserId,
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(userData),
+                success: function(response) {
+                    if (response.success) {
+                        showAlert(response.message, 'success');
+                        // Clear form
+                        clearForm();
+                        // Reload user list
+                        loadUsers();
+                    } else {
+                        showAlert(response.message, 'danger');
+                    }
+                    btn.prop('disabled', false);
+                    btn.html(originalText);
+                },
+
+                error: function(xhr) {
+                    console.log(xhr.responseText); // 🔥 IMPORTANT
+
+                    var errorMsg = xhr.responseJSON?.message || 'Error updating user';
+                    showAlert(errorMsg, 'danger');
+
+                    btn.prop('disabled', false);
+                    btn.html(originalText);
+
+                }
+                
+            });
+
+        }
+
         // alert message
         function showAlert(message, type) {
             $('#alertMessage').html(`
@@ -297,6 +429,6 @@
             });
          }
     </script>
-
+    
     </body>
 </html>
