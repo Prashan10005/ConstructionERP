@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authorization;
 using ConstructionERP.Data;
 using ConstructionERP.Models.Entities;
 using ConstructionERP.Models.ViewModels;
@@ -12,18 +13,18 @@ namespace ConstructionERP.Controllers.API
     public class AuthController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
-        public readonly ISessionService _sessionService; // dependacy
+        public readonly IJwtService _jwtService; // dependacy
 
-        public AuthController(ApplicationDbContext context, ISessionService sessionService)
+        public AuthController(ApplicationDbContext context, IJwtService jwtService)
         {
             _context = context;
-            _sessionService = sessionService;
+            _jwtService = jwtService;
         }
 
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] LoginViewModel model)
         {
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
                 return BadRequest(new
                 {
@@ -39,7 +40,7 @@ namespace ConstructionERP.Controllers.API
 
                 if (user == null)
                 {
-                    return Unauthorized(new { success = false, message = "Invalid email or password" });
+                    return Unauthorized(new { success = false, message = "Invalid email or Check Account Status" });
                 }
 
                 // verify password
@@ -47,13 +48,13 @@ namespace ConstructionERP.Controllers.API
 
                 if (!isValidPassword)
                 {
-                    return Unauthorized(new { success = false, message = "Invalid email or password" });
+                    return Unauthorized(new { success = false, message = "Invalid password" });
                 }
 
                 user.LastLoginAt = DateTime.Now;
                 await _context.SaveChangesAsync();
 
-                _sessionService.SetUserSession(user.UserID, user.Username, user.Email, user.Role);
+                var token = _jwtService.GenerateToken(user.UserID, user.Username, user.Email, user.Role);
 
                 // redirect based on user role
                 string redirect = user.Role switch
@@ -67,13 +68,15 @@ namespace ConstructionERP.Controllers.API
                 // return successful session
                 return Ok(new
                 {
-                    sucess = true,
-                    message = "Logoin Sccessful",
+                    success = true,
+                    message = "Login Successful",
+                    token = token,
                     userId = user.UserID,
                     username = user.Username,
                     email = user.Email,
                     role = user.Role,
                     redirectUrl = redirect,
+                    expiresIn = DateTime.UtcNow.AddMinutes(60)
                 });
             }
             catch (Exception ex)
@@ -81,26 +84,31 @@ namespace ConstructionERP.Controllers.API
                 return StatusCode(500, new { success = false, message = "An error occurred :" + ex.Message });
             }
         }
+        
+        // token validation endpoint
+        [HttpGet("validate-token")]
+        public IActionResult ValidateToken([FromBody] TokenValidationModel model)
+        {
+            var principal = _jwtService.ValidateToken(model.Token);
+            if (principal == null)
+            {
+                return Unauthorized(new { success = false, message = "Invalid or expired token" });
+            }
 
+            return Ok(new { success = true, message = "Token is valid" });
+        }
+        
+        
         //Creating user API
         [HttpPost("create-user")]
         public async Task<IActionResult> CreateUser([FromBody] CreateUserViewModel model)
         {
-            // check whether current user is Admin
-            var currentUserRole = _sessionService.GetUserRole();
-            if (currentUserRole != "Admin")
-            {
-                return Unauthorized(new { success = false, message = "Only Admin can create users" });
-            }
+            // Get user info from Token
+            var userId = _jwtService.GetUserIdFromToken(Request.Headers["Authorization"].ToString().Replace("Bearer ", ""));
 
-            if(!ModelState.IsValid)
+            if (!ModelState.IsValid)
             {
-                return BadRequest(new
-                {
-                    success = false,
-                    message = "Invalid Data",
-                    errors = ModelState.Values.SelectMany(v => v.Errors.Select(e => e.ErrorMessage))
-                });
+                return BadRequest(new { success = false, message = "Invalid data" });
             }
 
             try
@@ -152,14 +160,9 @@ namespace ConstructionERP.Controllers.API
 
         //Get all user to grid
         [HttpGet("get-users")]
+        [Authorize(Roles = "Admin")] // role based authorization to access this endpoint
         public async Task<IActionResult> GetUser()
         {
-            // check for admin role 
-            var currentUserRole = _sessionService.GetUserRole();
-            if(currentUserRole != "Admin")
-            {
-                return Unauthorized(new { success = false, message = "You are not Authorized" });
-            }
 
             try
             {
@@ -188,14 +191,10 @@ namespace ConstructionERP.Controllers.API
 
         // API method to update user by user ID
         [HttpPut("update-user/{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateUser(int id, [FromBody] UpdateUserViewModel model)
         {
-            // check for admin role 
-            var currentUserRole = _sessionService.GetUserRole();
-            if (currentUserRole != "Admin")
-            {
-                return Unauthorized(new { success = false, message = "You are not Authorized" });
-            }
+
             if (!ModelState.IsValid)
             {
                 return BadRequest(new
@@ -216,7 +215,7 @@ namespace ConstructionERP.Controllers.API
 
                 // email duplication check
                 var existingEmail = await _context.Users.FirstOrDefaultAsync(u => u.Email == model.Email && u.UserID != id);
-                if(existingEmail != null)
+                if (existingEmail != null)
                 {
                     return BadRequest(new { success = false, message = "Email already in use by another user" });
                 }
@@ -267,14 +266,10 @@ namespace ConstructionERP.Controllers.API
 
         // get user details by user id
         [HttpGet("get-user/{id}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> GetUser(int id)
         {
-            // check for admin role 
-            var currentUserRole = _sessionService.GetUserRole();
-            if (currentUserRole != "Admin")
-            {
-                return Unauthorized(new { success = false, message = "You are not Authorized" });
-            }
+
             try
             {
                 var user = await _context.Users
@@ -305,10 +300,7 @@ namespace ConstructionERP.Controllers.API
         [HttpPost("logout")]
         public IActionResult Logout()
         {
-            HttpContext.Session.Clear();
-
-            Response.Cookies.Delete(".AspNetCore.Session"); // wont allow to resuse the same session
-
+            //removing the token
             return Ok(new { success = true, message = "Logged out successfully" });
         }
     }

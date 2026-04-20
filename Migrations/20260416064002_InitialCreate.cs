@@ -33,7 +33,7 @@ namespace ConstructionERP.Migrations
             migrationBuilder.InsertData(
                 table: "Users",
                 columns: new[] { "UserID", "CreatedAt", "Email", "IsActive", "LastLoginAt", "PasswordHash", "Role", "Username" },
-                values: new object[] { 1, new DateTime(2026, 4, 11, 14, 31, 57, 699, DateTimeKind.Local).AddTicks(9936), "admin@gmail.com", true, null, "$2a$11$pzSIn5RSk125HfYL.L0MXOShvDRTgyQbGjzCcC9XVlVY9NHjGYtQq", "Admin", "Admin" });
+                values: new object[] { 1, new DateTime(2026, 4, 16, 12, 10, 1, 688, DateTimeKind.Local).AddTicks(4949), "admin@gmail.com", true, null, "$2a$11$oSX5CTN1kcWd01Yb0v87re.dj0/gCaQ/7/gS0nqgXTEfpa6kGIusm", "Admin", "Admin" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
