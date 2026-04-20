@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConstructionERP.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260411090157_InitialCreate")]
+    [Migration("20260416064002_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -76,10 +76,10 @@ namespace ConstructionERP.Migrations
                         new
                         {
                             UserID = 1,
-                            CreatedAt = new DateTime(2026, 4, 11, 14, 31, 57, 699, DateTimeKind.Local).AddTicks(9936),
+                            CreatedAt = new DateTime(2026, 4, 16, 12, 10, 1, 688, DateTimeKind.Local).AddTicks(4949),
                             Email = "admin@gmail.com",
                             IsActive = true,
-                            PasswordHash = "$2a$11$pzSIn5RSk125HfYL.L0MXOShvDRTgyQbGjzCcC9XVlVY9NHjGYtQq",
+                            PasswordHash = "$2a$11$oSX5CTN1kcWd01Yb0v87re.dj0/gCaQ/7/gS0nqgXTEfpa6kGIusm",
                             Role = "Admin",
                             Username = "Admin"
                         });

@@ -62,78 +62,78 @@
             const password = document.getElementById('Password');
             const icon = document.querySelector('.toggle-password');
 
-            if (password.type === 'password') {
-                password.type = 'text';
-                icon.classList.remove('fa-eye');
-                icon.classList.add('fa-eye-slash');
-            } else {
+            if (password.type === 'text') {
                 password.type = 'password';
                 icon.classList.remove('fa-eye-slash');
                 icon.classList.add('fa-eye');
+            } else {
+                password.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
             }
         }
 
-                // handle form submission with AJAX
-        $('#LoginForm').on('submit', function (e) {
+        $('#LoginForm').on('submit', function(e) {
             e.preventDefault();
 
-            const btn = $('#LoginBtn');
-            btn.prop('disabled', true);
-            btn.html('Logging in...');
+            var email = $('#Email').val();
+            var password = $('#Password').val();
 
-            const formData = {
-                Email: $('#Email').val(),
-                Password: $('#Password').val()
-            };
+            if (!email || !password) {
+                showAlert('Please enter both email and password', 'danger');
+                return;
+            }
 
-            $.ajax({
+             $.ajax({
                 url: '/api/auth/login',
                 type: 'POST',
                 contentType: 'application/json',
-                data: JSON.stringify(formData),
+                data: JSON.stringify({
+                    email: email,
+                    password: password,
+                }),
+                success: function(response) {
+                    if (response.success) {
+                        // Store JWT token and user info
+                        localStorage.setItem('jwt_token', response.token);
+                        localStorage.setItem('role', response.role);
+                        localStorage.setItem('username', response.username);
 
-                // valid login
-                success: function (response) {
+                        showAlert(response.message, 'success');
 
-                    $('#alertMessage').html(`
-                        <div class="alert alert-success alert-dismissible fade show" role="alert">
-                            <i class="fas fa-check-circle me-2"></i> ${response.message}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    `);
-
-                    setTimeout(function () {
-                        window.location.href = response.redirectUrl;
-                    }, 1000);
-                },
-
-                // invalid login
-                error: function (xhr) {
-
+                        setTimeout(function() {
+                            window.location.href = response.redirectUrl;
+                        }, 1000);
+                    } else {
+                        showAlert(response.message, 'danger');
+                    }
                     btn.prop('disabled', false);
                     btn.html('Login');
-
-                    let errorMessage = 'Login failed. Please try again.';
-
+                },
+                error: function(xhr) {
+                    var errorMsg = 'Login failed. Please try again.';
                     if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMessage = xhr.responseJSON.message;
+                        errorMsg = xhr.responseJSON.message;
                     }
-
-                    $('#alertMessage').html(`
-                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-                            <i class="fas fa-exclamation-triangle me-2"></i> ${errorMessage}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                        </div>
-                    `);
-
-                    if (xhr.status === 401) {
-                        $('#Email').addClass('is-invalid');
-                        $('#Password').addClass('is-invalid');
-                    }
+                    showAlert(errorMsg, 'danger');
+                    btn.prop('disabled', false);
+                    btn.html('Login');
                 }
             });
         });
 
+        function showAlert(message, type) {
+            $('#alertMessage').html(
+                '<div class="alert alert-' + type + ' alert-dismissible fade show" role="alert">' +
+                    message +
+                    '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
+                '</div>'
+            );
+
+            setTimeout(function() {
+                $('.alert').alert('close');
+            }, 3000);
+        }
     </script>
 </body>
 </html>

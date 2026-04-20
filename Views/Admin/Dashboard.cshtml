@@ -19,7 +19,7 @@
             </h5>
 
             <div>
-                <span class="me-3"> Welcome, @ViewBag.Username</span>
+                <span id="userName" class="me-3"></span>
             </div>
 
             <form id="logoutForm" method="post" class="d-inline">
@@ -144,6 +144,32 @@
     <script type="text/javascript">
         var isUpdateMode = false;
         var selectedUserId = 0;
+
+        // get the active token
+        function getAuthToken() {
+            return localStorage.getItem('jwt_token');
+        }
+
+        // validate token
+        function checkAuth() {
+            var token = getAuthToken();
+            if (!token) {
+                window.location.href = '/Account/Login';
+                return false;
+            }
+            return true;
+        }
+
+            // Attach token to ALL AJAX requests
+        $.ajaxSetup({
+            beforeSend: function (xhr) {
+                var token = getAuthToken();
+                if (token) {
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+                }
+            }
+        });
+
         
         //toggle password
         function togglePassword() {
@@ -162,6 +188,11 @@
 
         // Load users at page load
         $(document).ready(function(){
+
+            if (!checkAuth()) return;
+            // welcome message
+            $('#userName').text('Welcome, ' + (localStorage.getItem('username') || 'Admin'));
+
             loadUsers();
 
             // clear button function call
@@ -178,6 +209,7 @@
 
         // Get all users
         function loadUsers() {
+
             $.ajax({
                 url: '/api/auth/get-users',
                 type: 'GET',
@@ -230,7 +262,7 @@
                     if (response.success && response.user) {
                         var user = response.user;
                         // display details in form
-                        $('#SelectedUserId').val(user.userID);
+                        $('#selectedUserId').val(user.userID);
                         $('#UserId').val(user.userID);
                         $('#Username').val(user.username);
                         $('#Email').val(user.email);
@@ -258,7 +290,7 @@
         //Clear form
         function clearForm() {
             $('#createUserForm')[0].reset();
-            $('#SelectedUserId').val('0');
+            $('#selectedUserId').val('0');
             $('#UserID').val('Auto-generated');
             $('#IsActive').prop('checked', true);
             $('#Password').val('');
@@ -285,6 +317,17 @@
                 Role: $('#Role').val(),
                 IsActive: $('#IsActive').is(':checked')
             };
+
+            // validations
+            if (!userData.Username) {
+                showAlert('Username is required', 'danger');
+                return;
+            }
+
+            if (!userData.Email) {
+                showAlert('Email is required', 'danger');
+                return;
+            }
 
             if (userData.Password.length < 8) {
                 showAlert('Password must be at least 8 characters', 'danger');
@@ -346,6 +389,16 @@
                 }
                 userData.Password = password;
              }
+
+             if (!userData.Username) {
+                showAlert('Username is required', 'danger');
+                return;
+            }
+
+            if (!userData.Email) {
+                showAlert('Email is required', 'danger');
+                return;
+            }
 
             // make the button disabled while updating
             var btn = $('#updateBtn');
@@ -415,19 +468,16 @@
     
         // Logout function
          function logout() {
-            $.ajax({
-                url: '/api/auth/logout',
-                type: 'POST',
-                success: function (response) {
-                    if (response.success) {
-                        window.location.href = '/Account/Login';
-                    }
-                },
-                error: function () {
-                    alert("Logout failed");
-                }
-            });
-         }
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('username');
+            localStorage.removeItem('user_email');
+            localStorage.removeItem('user_role');
+            localStorage.removeItem('token_expiry');
+            localStorage.removeItem('remember_me');
+
+            window.location.href = '/Account/Login';
+        }
     </script>
     
     </body>
