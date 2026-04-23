@@ -22,11 +22,9 @@
                 <span id="userName" class="me-3"></span>
             </div>
 
-            <form id="logoutForm" method="post" class="d-inline">
-                <button id="Logout" type="submit" class="btn btn-outline-danger btn-sm" onclick="logout()">
-                    LOGOUT
-                </button>
-            </form>
+        <button class="btn btn-outline-danger btn-sm" onclick="logout()">
+            LOGOUT
+        </button>
         </nav>
 
         <div class="mb-3">
@@ -122,7 +120,7 @@
                                 </thead>
                                 <tbody id="userTableBody">
                                     <tr>
-                                        <td colspan="4" class="text-center">Loading users...</td>
+                                        <td colspan="5" class="text-center">Loading users...</td>
                                     </tr>
                                 </tbody>
                             </table>
@@ -145,25 +143,22 @@
         var isUpdateMode = false;
         var selectedUserId = 0;
 
-        // get the active token
-        function getAuthToken() {
-            return localStorage.getItem('jwt_token');
-        }
-
-        // validate token
+        // check active token and admin role
         function checkAuth() {
-            var token = getAuthToken();
-            if (!token) {
+            var token = localStorage.getItem('jwt_token');
+            var role = localStorage.getItem('role');
+
+            if (!token || role !== 'Admin') {
                 window.location.href = '/Account/Login';
                 return false;
             }
             return true;
         }
 
-            // Attach token to ALL AJAX requests
+        // Attach token to ALL AJAX requests
         $.ajaxSetup({
             beforeSend: function (xhr) {
-                var token = getAuthToken();
+                var token = localStorage.getItem('jwt_token');
                 if (token) {
                     xhr.setRequestHeader('Authorization', 'Bearer ' + token);
                 }
@@ -187,257 +182,244 @@
         }
 
         // Load users at page load
-        $(document).ready(function(){
+        $(document).ready(function () {
 
             if (!checkAuth()) return;
-            // welcome message
+
             $('#userName').text('Welcome, ' + (localStorage.getItem('username') || 'Admin'));
 
             loadUsers();
 
-            // clear button function call
-            $('#clearBtn').click(function(){
-                clearForm();
-            });     
-
-            // update button function call
-            $('#updateBtn').click(function(){
-                updateUser();
-            });
-        
+            $('#clearBtn').click(clearForm);
+            $('#updateBtn').click(updateUser);
         });
 
-        // Get all users
+        // Load all users to the grid
         function loadUsers() {
 
             $.ajax({
-                url: '/api/auth/get-users',
+                url: '/api/user',
                 type: 'GET',
-                success: function(response) {
-                    if (response.success && response.users) {
-                        var tbody = $('#userTableBody');
-                        tbody.empty();
+                success: function (response) {
 
-                        if (response.users.length === 0) {
-                            tbody.append('<tr><td colspan="4" class="text-center">No users found</td></tr>');
-                        } else {
-                            $.each(response.users, function(index, user) {
-                                var statusBadge = user.isActive ?
-                                    '<span class="badge bg-success">Active</span>' :
-                                    '<span class="badge bg-danger">Inactive</span>';
+                    var tbody = $('#userTableBody');
+                    tbody.empty();
 
-                                var roleBadge = user.role === 'ProjectManager' ?
-                                    '<span class="badge bg-primary">Project Manager</span>' :
-                                    '<span class="badge bg-warning">Field Staff</span>';
-
-                                var row = `
-                                    <tr>
-                                        <td>${escapeHtml(user.username)}</td>
-                                        <td>${escapeHtml(user.email)}</td>
-                                        <td>${roleBadge}</td>
-                                        <td>${statusBadge}</td>
-                                        <td><button class="btn btn-sm btn-info" onclick="viewUser(${user.userID})">View</button></td>
-                                    </tr>
-                                `;
-                                tbody.append(row);
-                            });
-                        }
-                    } else {
-                        $('#userTableBody').html('<tr><td colspan="4" class="text-center text-danger">Failed to load users</td></tr>');
+                    if (!response.success || !response.data || response.data.length === 0) {
+                        tbody.append('<tr><td colspan="5" class="text-center">No users found</td></tr>');
+                        return;
                     }
+
+                    $.each(response.data, function (index, user) {
+
+                        var statusBadge = user.isActive
+                            ? '<span class="badge bg-success">Active</span>'
+                            : '<span class="badge bg-danger">Inactive</span>';
+
+                        var roleBadge =
+                            user.role === 'ProjectManager'
+                                ? '<span class="badge bg-primary">Project Manager</span>'
+                                : '<span class="badge bg-warning">Field Staff</span>';
+
+                        var row = `
+                            <tr>
+                                <td>${escapeHtml(user.username)}</td>
+                                <td>${escapeHtml(user.email)}</td>
+                                <td>${roleBadge}</td>
+                                <td>${statusBadge}</td>
+                                <td>
+                                    <button class="btn btn-sm btn-info" onclick="viewUser(${user.userID})">
+                                        View
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+
+                        tbody.append(row);
+                    });
                 },
-                error: function(xhr) {
-                    $('#userTableBody').html('<tr><td colspan="4" class="text-center text-danger">Error loading users</td></tr>');
-                    showAlert('Error loading users', 'danger');
+                error: function (xhr) {
+                        console.log("STATUS:", xhr.status);
+                        console.log("RESPONSE:", xhr.responseText); 
+                        showAlert('Error loading users', 'danger');
                 }
             });
         }
 
         //Get single user by ID
-        function viewUser(Id) {
-            $.ajax({
-                url: `/api/auth/get-user/`+ Id,
-                type: 'GET',
-                success: function(response) {
-                    if (response.success && response.user) {
-                        var user = response.user;
-                        // display details in form
-                        $('#selectedUserId').val(user.userID);
-                        $('#UserId').val(user.userID);
-                        $('#Username').val(user.username);
-                        $('#Email').val(user.email);
-                        $('#Password').val('');
-                        $('#Role').val(user.role);
-                        $('#IsActive').prop('checked', user.isActive);
-                        $('#CreatedAt').val(user.createdAt);
-                        $('#LastloginAt').val(user.lastLoginAt || 'Never logged in');
-                        
-                        isUpdateMode = true;
-                        selectedUserId = user.userID;
-                        $('#createBtn').prop('disabled', true);
-                        $('#updateBtn').prop('disabled', false);
-                        $('#passwordRequired').html('<span class="text-muted">(Optional - leave blank to keep current)</span>');
-                        $('#passwordHint').show();
+        function viewUser(id) {
 
-                        showAlert('User loaded. Make changes and click Update User.', 'success');
-                    } 
+            $.ajax({
+                url: '/api/user/' + id,
+                type: 'GET',
+                success: function (response) {
+
+                    if (!response.success) return;
+
+                    var user = response.data;
+
+                    $('#UserId').val(user.userID);
+                    $('#Username').val(user.username);
+                    $('#Email').val(user.email);
+                    $('#Password').val('');
+                    $('#Role').val(user.role);
+                    $('#IsActive').prop('checked', user.isActive);
+                    $('#CreatedAt').val(user.createdAt);
+                    $('#LastloginAt').val(user.lastLoginAt || 'Never logged in');
+
+                    isUpdateMode = true;
+                    selectedUserId = user.userID;
+
+                    $('#createBtn').prop('disabled', true);
+                    $('#updateBtn').prop('disabled', false);
+
+                    showAlert('User loaded successfully', 'success');
                 },
-                error: function(xhr) {
-                    showAlert('Error loading user details', 'danger');
+                error: function () {
+                    showAlert('Error loading user', 'danger');
                 }
             });
         }
+
         //Clear form
         function clearForm() {
+
             $('#createUserForm')[0].reset();
-            $('#selectedUserId').val('0');
-            $('#UserID').val('Auto-generated');
-            $('#IsActive').prop('checked', true);
-            $('#Password').val('');
+
+            $('#UserId').val('Auto-generated');
 
             isUpdateMode = false;
             selectedUserId = 0;
+
             $('#createBtn').prop('disabled', false);
             $('#updateBtn').prop('disabled', true);
-            $('#passwordRequired').html('*');
-            $('#passwordHint').hide();
 
-            showAlert('Form cleared. Ready to create new user.', 'info');
+            showAlert('Form cleared', 'info');
         }
 
         // Create user
-        $('#createBtn').click(function(e) {
+        $('#createBtn').click(function (e) {
             e.preventDefault();
             
-            // Get form data
+            var username = $('#Username').val().trim();
+            var email = $('#Email').val().trim();
+            var password = $('#Password').val().trim();
+
+            // client side validation
+            if (!username) {
+                showAlert("Username is required", "danger");
+                return;
+            }
+
+            if (!email) {
+                showAlert("Email is required", "danger");
+                return;
+            }
+
+            if (!password) {
+                showAlert("Password is required", "danger");
+                return;
+            }
+
+            if (password.length < 8) {
+                showAlert("Password must be at least 8 characters", "danger");
+                return;
+            }
+            var btn = $('#createBtn');
+            btn.prop('disabled', true).text('Creating...');
+
             var userData = {
-                Username: $('#Username').val().trim(),
-                Email: $('#Email').val().trim(),
-                Password: $('#Password').val(),
-                Role: $('#Role').val(),
-                IsActive: $('#IsActive').is(':checked')
+                username: username,
+                email: email,
+                password: password,
+                role: $('#Role').val(),
+                isActive: $('#IsActive').is(':checked')
             };
 
-            // validations
-            if (!userData.Username) {
-                showAlert('Username is required', 'danger');
-                return;
-            }
-
-            if (!userData.Email) {
-                showAlert('Email is required', 'danger');
-                return;
-            }
-
-            if (userData.Password.length < 8) {
-                showAlert('Password must be at least 8 characters', 'danger');
-                return;
-            }
-            
-            // Show loading state
-            var btn = $(this).find('button[type="submit"]');
-            var originalText = btn.html();
-            btn.prop('disabled', true);
-            btn.html('Creating...');
-            
-            // Call REST API
             $.ajax({
-                url: '/api/auth/create-user',
+                url: '/api/user/create',
                 type: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify(userData),
-                success: function(response) {
+                success: function (response) {
+
                     if (response.success) {
-                        showAlert(response.message, 'success');
-                        // Clear form
+                        showAlert('User created successfully', 'success');
                         $('#createUserForm')[0].reset();
-                        $('#IsActive').prop('checked', true);
-                        // Reload user list
                         loadUsers();
                     } else {
-                        showAlert(response.message, 'danger');
+                        showAlert('Failed to create user', 'danger');
                     }
-                    btn.prop('disabled', false);
-                    btn.html(originalText);
+
+                    btn.prop('disabled', false).text('Create User');
                 },
-                error: function(xhr) {
-                    var errorMsg = 'Error creating user';
-                    if (xhr.responseJSON && xhr.responseJSON.message) {
-                        errorMsg = xhr.responseJSON.message;
-                    }
-                    showAlert(errorMsg, 'danger');
-                    btn.prop('disabled', false);
-                    btn.html(originalText);
+                error: function (xhr) {
+                    showAlert(xhr.responseJSON?.message || 'Error creating user', 'danger');
+                    btn.prop('disabled', false).text('Create User');
                 }
             });
         });
 
         // update user
-        function updateUser(){
-            var userData ={
-                Username: $('#Username').val().trim(),
-                Email: $('#Email').val().trim(),
-                Role: $('#Role').val(),
-                IsActive: $('#IsActive').is(':checked')
-            };
-                var password = $('#Password').val();
+        function updateUser() {
 
-            if (password) {
-                if (password.length < 8) {
-                    showAlert('Password must be at least 8 characters', 'danger');
-                    return;
-                }
-                userData.Password = password;
-             }
+            var username = $('#Username').val().trim();
+            var email = $('#Email').val().trim();
+            var password = $('#Password').val().trim();
 
-             if (!userData.Username) {
-                showAlert('Username is required', 'danger');
+            // client side validation
+            if (!username) {
+                showAlert("Username is required", "danger");
                 return;
             }
 
-            if (!userData.Email) {
-                showAlert('Email is required', 'danger');
+            if (!email) {
+                showAlert("Email is required", "danger");
                 return;
             }
 
-            // make the button disabled while updating
+            if (password && password.length < 8) {
+                showAlert("Password must be at least 8 characters", "danger");
+                return;
+            }
+
             var btn = $('#updateBtn');
-            var originalText = btn.html();
-            btn.prop('disabled', true);
-            btn.html('Updating...');
+            btn.prop('disabled', true).text('Updating...');
+
+            var userData = {
+                username: username,
+                email: email,
+                role: $('#Role').val(),
+                isActive: $('#IsActive').is(':checked')
+            };
+
+            // only update if password is entered
+            if (password) {
+                userData.password = password;
+            }
 
             $.ajax({
-                url: '/api/auth/update-user/' + selectedUserId,
+                url: '/api/user/' + selectedUserId,
                 type: 'PUT',
                 contentType: 'application/json',
                 data: JSON.stringify(userData),
-                success: function(response) {
+                success: function (response) {
+
                     if (response.success) {
-                        showAlert(response.message, 'success');
-                        // Clear form
+                        showAlert('User updated successfully', 'success');
                         clearForm();
-                        // Reload user list
                         loadUsers();
                     } else {
-                        showAlert(response.message, 'danger');
+                        showAlert('Update failed', 'danger');
                     }
-                    btn.prop('disabled', false);
-                    btn.html(originalText);
+
+                    btn.prop('disabled', false).text('Update User');
                 },
-
-                error: function(xhr) {
-                    console.log(xhr.responseText); // 🔥 IMPORTANT
-
-                    var errorMsg = xhr.responseJSON?.message || 'Error updating user';
-                    showAlert(errorMsg, 'danger');
-
-                    btn.prop('disabled', false);
-                    btn.html(originalText);
-
+                error: function (xhr) {
+                    showAlert(xhr.responseJSON?.message || 'Error updating user', 'danger');
+                    btn.prop('disabled', false).text('Update User');
                 }
-                
             });
-
         }
 
         // alert message
@@ -467,15 +449,16 @@
         }
     
         // Logout function
-         function logout() {
-            localStorage.removeItem('jwt_token');
-            localStorage.removeItem('user_id');
-            localStorage.removeItem('username');
-            localStorage.removeItem('user_email');
-            localStorage.removeItem('user_role');
-            localStorage.removeItem('token_expiry');
-            localStorage.removeItem('remember_me');
+        function logout() {
 
+            // CLEAR ALL AUTH DATA
+            localStorage.removeItem('jwt_token');
+            localStorage.removeItem('role');
+            localStorage.removeItem('username');
+            localStorage.removeItem('user_id');
+            localStorage.removeItem('token_expiry');
+
+            // REDIRECT TO LOGIN
             window.location.href = '/Account/Login';
         }
     </script>
