@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace ConstructionERP.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260416064002_InitialCreate")]
+    [Migration("20260421133208_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -38,8 +38,7 @@ namespace ConstructionERP.Migrations
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -49,40 +48,19 @@ namespace ConstructionERP.Migrations
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
-                        .HasMaxLength(255)
-                        .HasColumnType("nvarchar(255)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Role")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Username")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.HasKey("UserID");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
-
-                    b.HasIndex("Username")
-                        .IsUnique();
-
                     b.ToTable("Users");
-
-                    b.HasData(
-                        new
-                        {
-                            UserID = 1,
-                            CreatedAt = new DateTime(2026, 4, 16, 12, 10, 1, 688, DateTimeKind.Local).AddTicks(4949),
-                            Email = "admin@gmail.com",
-                            IsActive = true,
-                            PasswordHash = "$2a$11$oSX5CTN1kcWd01Yb0v87re.dj0/gCaQ/7/gS0nqgXTEfpa6kGIusm",
-                            Role = "Admin",
-                            Username = "Admin"
-                        });
                 });
 #pragma warning restore 612, 618
         }

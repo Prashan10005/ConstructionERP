@@ -1,12 +1,10 @@
 ﻿using Microsoft.AspNetCore.Mvc;
-using ConstructionERP.Services;
 
 namespace ConstructionERP.Controllers
 {
-    public class AccountController : Controller
+    public class AdminController : Controller
     {
-        [HttpGet]
-        public IActionResult Login()
+        public IActionResult Dashboard()
         {
             return View();
         }
