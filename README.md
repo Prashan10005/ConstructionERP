@@ -30,6 +30,14 @@ Authentication & Authorization
   Session-based authentication (non-JWT)
 
 Key Functional Modules
+     Project Module - Version 1 completed
+          Where project manager creating projects as sites, creation and assining of tasks to the field staffs for the projects with open and inprogress status, closing or cancelling the projects at the completion or cancellation where there is no open task for the project.
+          Field staffs attending and closing the assinged tasks.
+     Material module - Version 1 ongoing
+          Project manager making request of materail quoation for the open tasks, after receiving the quoation from the field staff approve or reject it.
+          Field staffs submitting the quoation and viewing of approved quoatations.
+          
+User Features
   Admin 
       User Creation and User profile updation (Password has to be updated if only the user forgotten the old password)
   ProjectManager - Future module
