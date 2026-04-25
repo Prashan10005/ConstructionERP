@@ -49,7 +49,7 @@ namespace ConstructionERP.Services.Implementations
                 RedirectUrl = user.Role switch
                 {
                     "Admin" => "/Admin/Dashboard",
-                    "ProjectManager" => "/ProjectManager/Dashboard",
+                    "ProjectManager" => "/ProjectManager/Home",
                     "FieldStaff" => "/FieldStaff/Dashboard",
                     _ => "/Auth/Login"
                 }
