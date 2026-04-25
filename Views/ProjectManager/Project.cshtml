@@ -1,0 +1,583 @@
+﻿@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Project Manager Dashboard</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+
+<body class="bg-light">
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-light bg-white shadow-sm px-3">
+        <h5 class="mb-0">
+            <i class="fas fa-project-diagram"></i> Project Management
+        </h5>
+
+        <div>
+            <span id="userName" class="me-3"></span>           
+        </div>
+
+        <button class="btn btn-outline-danger btn-sm" onclick="logout()">Back to Home</button>
+    </nav>
+
+    <!-- TABS -->
+    <div class="container mt-3">
+
+        <ul class="nav nav-tabs">
+
+            <li class="nav-item">
+                <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#projectTab">
+                    Project Creation
+                </button>
+            </li>
+
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#taskTab">
+                    Task Creation
+                </button>
+            </li>
+
+            <li class="nav-item">
+                <button class="nav-link" data-bs-toggle="tab" data-bs-target="#statusTab">
+                    Project Status
+                </button>
+            </li>
+
+        </ul>
+
+    </div>
+
+    <!-- MAIN LAYOUT -->
+    <div class="container-fluid mt-3">
+        <div class="tab-content">
+
+
+            <!-- Projects Tab-->
+            <div class="tab-pane fade show active" id="projectTab">
+
+                <div class="row mt-3">
+
+                    <!-- LEFT: FORM -->
+                    <div class="col-md-5">
+                        <div class="card">
+                            <div class="card-header bg-success text-white">
+                                Add New Project
+                            </div>
+
+                            <div class="card-body">
+
+                                <form id="projectForm">
+
+                                    <div class="mb-2">
+                                        <label>Project Name</label>
+                                        <input id="ProjectName" class="form-control" placeholder="Enter project name">
+                                    </div>
+
+                                    <div class="mb-2">
+                                        <label>Description</label>
+                                        <textarea id="Description" class="form-control"></textarea>
+                                    </div>
+
+                                    <div class="d-flex gap-2">
+                                        <button id="createBtn" type="button" class="btn btn-primary flex-grow-1">
+                                            Create Project
+                                        </button>
+                                        <button id="clearBtn" type="button" class="btn btn-secondary">
+                                            Clear
+                                        </button>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <div id="alertMessage"></div>
+                                    </div>
+
+                                </form>
+
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- RIGHT: GRID -->
+                    <div class="col-md-7">
+                        <div class="card">
+                            <div class="card-header bg-info text-white">
+                                Project List
+                            </div>
+
+                            <div class="card-body">
+                                <table class="table table-bordered table-striped">
+                                    <thead class="table-dark">
+                                        <tr>
+                                            <th>ID</th>
+                                            <th>Name</th>
+                                            <th>Status</th>
+                                            <th>Created By</th>
+                                        </tr>
+                                    </thead>
+
+                                    <tbody id="projectTable">
+                                        <tr>
+                                            <td colspan="4" class="text-center">Loading projects...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- Task tab-->
+            <div class="tab-pane fade" id="taskTab">
+
+                <div class="card">
+
+                    <div class="card-header bg-warning">
+                        Task Creation
+                    </div>
+
+                    <div class="card-body">
+                        <form id="taskForm">
+                            <select id="projectDropdown" class="form-control mb-2"></select>
+
+                            <input id="taskName" class="form-control mb-2" placeholder="Task Name">
+
+                            <textarea id="taskDesc" class="form-control mb-2" placeholder="Task Description"></textarea>
+
+                            <select id="fieldStaffDropdown" class="form-control mb-2"></select>
+
+                            <button id="createTaskBtn" type="but"class="btn btn-warning">
+                                Create Task
+                            </button>
+
+                            <div class="mt-3">
+                                <div id="alertMessageTask"></div>
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <!-- Status tab-->
+            <div class="tab-pane fade" id="statusTab">
+
+                <div class="card">
+
+                    <div class="card-header bg-secondary text-white">
+                        Project Status Update
+                    </div>
+
+                    <div class="card-body">
+
+                        <select id="statusProjectDropdown" class="form-control mb-2"></select>
+
+                        <input id="currentStatus" class="form-control mb-2" readonly />
+
+                        <select id="newStatus" class="form-control mb-2">
+                            <option value="Closed">Closed</option>
+                            <option value="Cancelled">Cancelled</option>
+                        </select>
+
+                        <button id="updateStatusBtn" class="btn btn-success">
+                            Update Status
+                        </button>
+
+                        <div id="alertMessageStatus"></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-success mt-3">
+        <i class="fas fa-check-circle"></i>
+        Login Successfull. Active Session is going on.
+    </div>
+
+    <!-- JS -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+
+        // check active token and admin role
+        function checkAuth() {
+            var token = localStorage.getItem('jwt_token');
+            var role = localStorage.getItem('role');
+
+            if (!token || role !== 'ProjectManager') {
+                window.location.href = '/Account/Login';
+                return false;
+            }
+            return true;
+        }
+
+        // Attach token to ALL AJAX requests
+        $.ajaxSetup({
+            beforeSend: function (xhr) {
+                var token = localStorage.getItem('jwt_token');
+                if (token) {
+                    xhr.setRequestHeader('Authorization', 'Bearer ' + token);
+                }
+            }
+        });
+
+        $(document).ready(function () {
+
+            if (!checkAuth()) return;
+
+            $('#userName').text('Welcome, ' + (localStorage.getItem('username')));
+
+            loadProjects();
+
+            $('#clearBtn').click(clearForm);
+
+            loadActiveProjects();
+            loadActiveFieldStaff();
+            loadActiveProjectsForStatus();
+        });
+
+        // Create project
+        $('#createBtn').click(function (e) {
+            e.preventDefault();
+
+            var projectName = $('#ProjectName').val().trim();
+            var description = $('#Description').val();
+
+            // client side validation
+            if (!projectName) {
+                showAlert("Project Name is required", "danger", "#alertMessage");
+                return;
+            }
+
+            var btn = $('#createBtn');
+            btn.prop('disabled', true).text('Creating...');
+
+            var projectData = {
+                projectName: projectName,
+                description: description
+            };
+
+
+            $.ajax({
+                url: '/api/project',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(projectData),
+                success: function (response) {
+
+                    if (response.success) {
+                        showAlert('Project created successfully', 'success', "#alertMessage");
+                        $('#projectForm')[0].reset();
+                        loadProjects();
+                    } else {
+                        showAlert('Failed to create project', 'danger', "#alertMessage" );
+                    }
+
+                    btn.prop('disabled', false).text('Create Project');
+                },
+                error: function (xhr) {
+                    showAlert(xhr.responseJSON?.message || 'Error creating project', 'danger', "#alertMessage");
+                    btn.prop('disabled', false).text('Create Project');
+                }
+            });
+        });
+
+
+        // load projects
+        function loadProjects() {
+
+            $.ajax({
+                url: '/api/project',
+                type: 'GET',
+                success: function (response) {
+
+                    var tbody = $('#projectTable');
+                    tbody.empty();
+
+                    if (!response.success || !response.data || response.data.length === 0) {
+                        tbody.append('<tr><td colspan="4" class="text-center">No projects found</td></tr>');
+                        return;
+                    }
+
+                    $.each(response.data, function (i, p) {
+
+                        let statusBadge = '';
+
+                        if (p.status === "Open")
+                            statusBadge = '<span class="badge bg-primary">Open</span>';
+                        else if (p.status === "InProgress")
+                            statusBadge = '<span class="badge bg-warning">In Progress</span>';
+                        else if (p.status === "Closed")
+                            statusBadge = '<span class="badge bg-success">Closed</span>';
+                        else
+                            statusBadge = '<span class="badge bg-danger">Cancelled</span>';
+
+                        var row = `
+                            <tr>
+                                <td>${p.projectId}</td>
+                                <td>${escapeHtml(p.projectName)}</td>
+                                <td>${statusBadge}</td>
+                                <td>${escapeHtml(p.projectManager)}</td>
+                            </tr>
+                        `;
+
+                        tbody.append(row);
+                    });
+                },
+                error: function (xhr) {
+                    console.log("STATUS:", xhr.status);
+                    console.log("RESPONSE:", xhr.responseText);
+                    showAlert('Error loading projects', 'danger', '#alertMessage');
+                }
+            });
+        }
+
+        // loadProjects ActiveXObject loadProjects for task creation tab
+        function loadActiveProjects() {
+            $.get('/api/task/projects', function (data) {
+
+                $('#projectDropdown').empty();
+                $('#projectDropdown').append(`<option value="">Select Project</option>`);
+
+                $.each(data, function (i, p) {
+                    $('#projectDropdown').append(
+                        `<option value="${p.projectId}">${p.projectName}</option>`
+                    );
+                });
+            });
+        }
+
+        function loadActiveProjectsForStatus() {
+
+            $.get('/api/task/projects', function (data) {
+
+                $('#statusProjectDropdown').empty();
+                $('#statusProjectDropdown').append(`<option value="">Select Project</option>`);
+
+                $.each(data, function (i, p) {
+                    $('#statusProjectDropdown').append(
+                        `<option value="${p.projectId}">${p.projectName}</option>`
+                    );
+                });
+            });
+        }
+
+        function loadActiveFieldStaff() {
+            $.get('/api/task/fieldstaff', function (data) {
+
+                $('#fieldStaffDropdown').empty();
+                $('#fieldStaffDropdown').append(`<option value="">Select Field Staff</option>`);
+
+                $.each(data, function (i, u) {
+                    $('#fieldStaffDropdown').append(
+                        `<option value="${u.userId}">${u.username}</option>`
+                    );
+                });
+            });
+        }
+
+        //commit change of project Selection in the Project Statys Tab
+        $('#statusProjectDropdown').change(function () {
+
+            var projectId = $(this).val();
+
+            if (!projectId) {
+                $('#currentStatus').val('');
+                return;
+            }
+
+            $.ajax({
+                url: '/api/project/' + projectId,
+                type: 'GET',
+
+                success: function (res) {
+
+                    if (res.success && res.data) {
+                        $('#currentStatus').val(res.data.status);
+                    } else {
+                        $('#currentStatus').val('Unknown');
+                    }
+                },
+
+                error: function () {
+                    $('#currentStatus').val('Error loading status');
+                }
+            });
+        });
+
+        // CREATE TASK
+        $('#createTaskBtn').click(function (e) {
+            e.preventDefault();
+            var btn = $('#createTaskBtn');
+
+            var project = $('#projectDropdown').val();
+            var taskName = $('#taskName').val().trim();
+            var taskDesc = $('#taskDesc').val().trim();
+            var assignedTo = $('#fieldStaffDropdown').val();
+
+            // clientInformation side validation
+            if (!project) {
+                showAlert("Please select a project", "danger", "#alertMessageTask");
+            return;
+            }
+
+            if (!taskName || taskName.length < 3) {
+                showAlert("Task name must be at least 3 characters", "danger","#alertMessageTask");
+            return;
+            }
+
+            if (!assignedTo) {
+                showAlert("Please assign field staff", "danger","#alertMessageTask");
+                return;
+            }
+            
+            btn.prop('disabled', true).text('Creating...');
+
+            var data = {
+                projectId: parseInt(project),
+                taskName: taskName,
+                taskDescription: taskDesc,
+                assignedToId: parseInt(assignedTo)
+            };
+
+            $.ajax({
+                url: '/api/task',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+
+                success: function (response) {
+
+                    if (response.success) {
+                        showAlert('Project Task created successfully', 'success', '#alertMessageTask');
+                        $('#taskForm')[0].reset();
+                    } else {
+                        showAlert('Failed to create project task', 'danger', '#alertMessageTask');
+                    }
+
+                    btn.prop('disabled', false).text('Create Task');
+                },
+                error: function (xhr) {
+                    showAlert(xhr.responseJSON?.message || 'Error creating project task', 'danger', '#alertMessageTask');
+                    btn.prop('disabled', false).text('Create Task');
+                }
+            });
+        });
+
+        //Clear form
+        function clearForm() {
+
+            $('#projectForm')[0].reset();
+
+            $('#createBtn').prop('disabled', false);
+
+            showAlert('Form cleared', 'info');
+        }
+
+        function showAlert(message, type, targetId = "#alertMessage") {
+
+            $(targetId).html(`
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `);
+
+            setTimeout(function () {
+                $(targetId + " .alert").alert('close');
+            }, 3000);
+        }
+
+        //update status
+        $('#updateStatusBtn').click(function (e) {
+            e.preventDefault();
+
+            var btn = $(this);
+
+            var projectId = $('#statusProjectDropdown').val();
+            var status = $('#newStatus').val();
+
+            if (!projectId) {
+                showAlert("Select a project", "danger", "#alertMessageStatus");
+                return;
+            }
+
+            if (!status) {
+                showAlert("Select status", "danger", "#alertMessageStatus");
+                return;
+            }
+
+            btn.prop('disabled', true).text('Updating...');
+
+            var data = {
+                projectId: projectId,
+                status: status
+            };
+
+            $.ajax({
+                url: '/api/project/status',
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(data),
+
+                success: function (res) {
+
+                    if (res.success) {
+                        showAlert("Status updated successfully", "success", "#alertMessageStatus");
+
+                        loadActiveProjectsForStatus();
+                        $('#currentStatus').val(status);
+                    } else {
+                        showAlert(res.message || "Update failed", "danger", "#alertMessageStatus");
+                    }
+
+                    btn.prop('disabled', false).text('Update Status');
+                },
+
+                error: function (xhr) {
+                    var msg = xhr.responseJSON?.message || "Server error";
+                    showAlert(msg, "danger", "#alertMessageStatus");
+                    btn.prop('disabled', false).text('Update Status');
+                }
+            });
+        });
+
+        // ESCAPE HTML
+        function escapeHtml(text) {
+            if (!text) return '';
+            return text
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+
+        // LOGOUT
+        function logout() {
+
+            window.location.href = "/ProjectManager/Home";
+        }
+
+    </script>
+
+</body>
+</html>
